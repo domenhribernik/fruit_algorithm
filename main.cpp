@@ -15,45 +15,78 @@ struct Node {
     int pos;
 };
 
+int pick_apples(int m, vector<bool> fruits) {
+  int appleCount = 0;
+  for (size_t i = 0; i < fruits.size(); i += m) {
+    if (fruits[i] == 1) {
+      appleCount++;
+    }
+  }
+  return appleCount;
+}
+
 pair<vector<int>, int> solve(int n, int k, int m, vector<bool>& fruits) {
-    deque<Node> dq;
-    vector<int> insertedIndices;
-    // initialize deque
-    for (int i = 0; i < n; i++) {
-        if (i % m != 0) {
-            dq.push_back({min(i % m, m - i % m), i});
-        }
-    }
-    while (k-- > 0) {
-        Node front = dq.front();
-        dq.pop_front();
-        // insert apple
-        fruits.insert(fruits.begin() + front.pos, 1);
-        insertedIndices.push_back(front.pos);
-        // update deque
-        for (auto& node : dq) {
-            if (node.pos >= front.pos) {
-                node.pos++;  // shift positions to the right
-            }
-        }
-        int size = fruits.size();
-        if (front.pos + 1 < size && (front.pos + 1) % m != 0) {
-            dq.push_back({min((front.pos + 1) % m, m - (front.pos + 1) % m), front.pos + 1});
-        }
-    }
+  vector<int> insertedIndices;
+  int appleCount = 0;
 
-    for (int f : fruits) {
-        cout << f;
+  bool check = true;
+  int check_value = fruits[0];   
+  for (int i = 1; i < n; i++) {
+    if (fruits[i] != check_value) {
+      check = false;
+      break;
     }
-    cout << endl;
+  }
 
-    int appleCount = 0;
-    for (size_t i = 0; i < fruits.size(); i += m) {
-        if (fruits[i] == 1) {
-            appleCount++;
-        }
-    }
+  if (check) {
+    appleCount = pick_apples(m, fruits);
     return {insertedIndices, appleCount};
+  }
+
+  for (int i = m-1; i < n; i += m) {
+    vector<vector<int>> V(m, vector<int>(2));
+    // Inicializacija
+    for (int j = 0; j < m; j++) {
+        V[j][0] = 0;
+    }
+
+    int j = i;
+    int l = 0;
+
+    while (j >= i-m+1 || l < k) {
+      for (int p = j; p < n; p += m) {
+        V[l][0] += fruits[p];
+      }
+      V[l][1] = j;
+      l++;
+      j--;
+    }
+
+    int best_value = V[0][0];
+    int best_index = V[0][1];
+    int cost = 0;
+
+    for (int x = 1; x < m; x++) {
+      if (V[x][0] < best_value) {
+        best_value = V[x][0];
+        best_index = V[x][1];
+        cost = x;
+      }
+    }
+
+    fruits.insert(fruits.begin() + best_index, 1);
+    insertedIndices.emplace_back(best_index+1);
+    k -= cost;
+  }
+
+  for (int f : fruits) {
+      cout << f;
+  }
+  cout << endl;
+
+  appleCount = pick_apples(m, fruits);
+
+  return {insertedIndices, appleCount};
 }
 
 vector<bool> stringToVector(const string& str) {
@@ -65,13 +98,12 @@ vector<bool> stringToVector(const string& str) {
 }
 
 void printResult(pair<vector<int>, int> result) {
-    cout << "Indices where the apples were inserted: ";
+    cout << result.second << endl;
+    cout << result.first.size() << ' ';
     for (size_t i = 0; i < result.first.size(); i++) {
         cout << result.first[i] << " ";
     }
     cout << endl;
-
-    cout << "Number of apples Ivo picked: " << result.second << endl;
 }
 
 int main(int argc, char *argv[]) {
