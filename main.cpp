@@ -1,149 +1,111 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include <set>
-#include <queue>
 #include <algorithm>
 #include <sstream>
 #include <chrono>
+#include <climits>
 
 using namespace std;
 using namespace chrono;
 
-struct Node {
-    int distanceToNextPick;
-    int pos;
-};
+int main(int argc, char *argv[]) {
+    auto start = high_resolution_clock::now();
 
-int pick_apples(int m, vector<bool> fruits) {
-  int appleCount = 0;
-  for (size_t i = m-1; i < fruits.size(); i += m) {
-    if (fruits[i] == 1) {
-      appleCount++;
+    if (argc != 2) {
+        cout << "Usage: " << argv[0] << " <filename>" << endl;
+        return 1;
     }
-  }
-  return appleCount;
-}
 
-int pick_apples_value(int m, vector<bool> fruits, int index) {
-  int appleCount = 0;
-  fruits.insert(fruits.begin() + index, 1);
-  for (size_t i = m-1; i < fruits.size(); i += m) {
-    if (fruits[i] == 1) {
-      appleCount++;
+    string filename = argv[1];
+    ifstream file(filename);
+    if (!file.is_open()) {
+        cout << "Failed to open the file." << endl;
+        return 1;
     }
-  }
 
-  return appleCount;
-}
-
-pair<vector<int>, int> solve(int n, int k, int m, vector<bool>& fruits) {
-  vector<int> insertedIndices;
-  int appleCount = 0;
-  bool stop = false;
-  bool check = true;
-  int check_value = fruits[0];   
-  for (int i = 1; i < n; i++) {
-    if (fruits[i] != check_value) {
-      check = false;
-      break;
+    string line;
+    int n, k, m;
+    string fruit;
+    if (getline(file, line)) {
+        stringstream ss(line);
+        ss >> n >> k >> m;
+    } else {
+        cout << "Wrong format" << endl;
+        return 1;
     }
-  }
 
-  if (check || m == 1) {
-    appleCount = pick_apples(m, fruits);
-    return {insertedIndices, appleCount};
-  }
+    if (getline(file, line)) {
+        stringstream ss(line);
+        ss >> fruit;
+    }
 
-  while (!stop) {
-    stop = true;
-    for (int i = m-1; i < n && k != 0; i += m) {
-      int value1 = 0;
-      int value2 = 0;
+    file.close();
 
-      if (fruits[i] == 1 && fruits[i-1] == 0) {
-        for (int j = i; j < n; j += m) {
-          value1 += fruits[j];
+    // Data structures for DP
+    vector<int> apples_before(n, 0);
+    for (int i = 0; i < n; ++i) {
+        apples_before[i] = (i > 0 ? apples_before[i-1] : 0) + (fruit[i] == '1');
+    }
+
+    // We need to consider n+k positions for insertion points
+    vector<vector<int>> dp(n + 1, vector<int>(k + 1, INT_MAX));
+    vector<vector<int>> path(n + 1, vector<int>(k + 1, -1)); // To reconstruct insertion decisions
+
+    dp[0][0] = 0; // No apples picked if no fruit is considered
+    for (int i = 0; i <= n; ++i) {
+        for (int j = 0; j <= k; ++j) {
+            // Do not insert an apple
+            if (i < n && dp[i][j] != INT_MAX) {
+                int next_pick = (i + j) % m == (m - 1) ? (fruit[i] == '1') : 0;
+                if (dp[i+1][j] > dp[i][j] + next_pick) {
+                    dp[i+1][j] = dp[i][j] + next_pick;
+                    path[i+1][j] = j;
+                }
+            }
+
+            // Try to insert an apple
+            if (j < k && dp[i][j] != INT_MAX) {
+                int next_pick = (i + j) % m == (m - 1) ? 1 : 0;
+                if (dp[i][j+1] > dp[i][j] + next_pick) {
+                    dp[i][j+1] = dp[i][j] + next_pick;
+                    path[i][j+1] = j;
+                }
+            }
         }
-        for (int j = i-1; j < n; j += m) {
-          value2 += fruits[j];
-        }
-
-        if (value2 <= value1) {
-          fruits.insert(fruits.begin() + i-1, 1);
-          insertedIndices.emplace_back(i);
-          stop = false;
-          k--;
-        }
-      }
     }
-  }
 
-  appleCount = pick_apples(m, fruits);
+    // Find minimum apples picked by Ivo
+    int min_apples = INT_MAX, best_j = 0;
+    for (int j = 0; j <= k; ++j) {
+        if (dp[n][j] < min_apples) {
+            min_apples = dp[n][j];
+            best_j = j;
+        }
+    }
 
-  return {insertedIndices, appleCount};
-}
+    // Reconstruct the solution
+    vector<int> insertions;
+    int current = n, current_j = best_j;
+    while (current > 0) {
+        int prev_j = path[current][current_j];
+        if (prev_j != current_j) {
+            insertions.push_back(current);
+        }
+        current_j = prev_j;
+        current--;
+    }
 
-vector<bool> stringToVector(const string& str) {
-  vector<bool> boolVec;
-  for (char c : str) {
-      boolVec.push_back(c == '1');
-  }
-  return boolVec;
-}
-
-void printResult(pair<vector<int>, int> result) {
-    cout << result.second << endl;
-    cout << result.first.size() << ' ';
-    for (size_t i = 0; i < result.first.size(); i++) {
-        cout << result.first[i] << " ";
+    reverse(insertions.begin(), insertions.end());
+    cout << min_apples << endl;
+    cout << insertions.size() << " ";
+    for (int pos : insertions) {
+        cout << pos + 1 << " ";  // Convert to 1-based index
     }
     cout << endl;
-}
 
-int main(int argc, char *argv[]) {
-  auto start = high_resolution_clock::now();
-
-  if (argc != 2) {
-    cout << "Usage: " << argv[0] << " <filename>" << endl;
-    return 1;
-  }
-  
-  string filename = argv[1];
-  ifstream file(filename);
-  if (!file.is_open()) {
-    cout << "Failed to open the file." << endl;
-    return 1;
-  }
-
-  string line;
-  int n, k, m;
-  string fruit;
-  if (getline(file, line)) {
-    stringstream ss(line);
-    ss >> n >> k >> m;
-  }
-  else {
-    cout << "Wrong format" << endl;
-    return 1;
-  }
-
-  if (getline(file, line)) {
-    stringstream ss(line);
-    ss >> fruit; 
-  }
-
-  file.close();
-
-  cout << "n: " << n << ", k: " << k << ", m: " << m << endl;
-  //cout << fruit << endl;
-
-  vector<bool> fruits = stringToVector(fruit);
-  pair<vector<int>, int> result = solve(n, k, m, fruits);
-  printResult(result);
-  
-  auto end = high_resolution_clock::now();
-  duration<double> duration_seconds = end - start;
-  cout << "Elapsed time: " << duration_seconds.count() << " seconds" << endl;
-  return 0;
+    auto end = high_resolution_clock::now();
+    duration<double> duration_seconds = end - start;
+    cout << "Elapsed time: " << duration_seconds.count() << " seconds" << endl;
+    return 0;
 }
