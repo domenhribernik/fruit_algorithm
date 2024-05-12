@@ -42,12 +42,6 @@ int main(int argc, char *argv[]) {
 
     file.close();
 
-    // Data structures for DP
-    vector<int> apples_before(n, 0);
-    for (int i = 0; i < n; ++i) {
-        apples_before[i] = (i > 0 ? apples_before[i-1] : 0) + (fruit[i] == '1');
-    }
-
     // We need to consider n+k positions for insertion points
     vector<vector<int>> dp(n + 1, vector<int>(k + 1, INT_MAX));
     vector<vector<int>> path(n + 1, vector<int>(k + 1, -1)); // To reconstruct insertion decisions
@@ -58,20 +52,20 @@ int main(int argc, char *argv[]) {
             // Do not insert an apple
             if (i < n && dp[i][j] != INT_MAX) {
                 int next_pick = (i + j) % m == (m - 1) ? (fruit[i] == '1') : 0;
-                if (dp[i+1][j] > dp[i][j] + next_pick) {
+                if (dp[i+1][j] >= dp[i][j] + next_pick) {
                     dp[i+1][j] = dp[i][j] + next_pick;
                     path[i+1][j] = j;
                 }
             }
 
             // Try to insert an apple
-            if (j < k && dp[i][j] != INT_MAX) {
+             if (j < k && dp[i][j] != INT_MAX) {
                 int next_pick = (i + j) % m == (m - 1) ? 1 : 0;
-                if (dp[i][j+1] > dp[i][j] + next_pick) {
+                if (dp[i][j+1] >= dp[i][j] + next_pick) {
                     dp[i][j+1] = dp[i][j] + next_pick;
                     path[i][j+1] = j;
                 }
-            }
+             }
         }
     }
 
